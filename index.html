@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SmartAttend</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<style>
+:root {
+  --bg: #f8f9fc;
+  --white: #ffffff;
+  --ink: #0f1117;
+  --ink2: #4b5563;
+  --ink3: #9ca3af;
+  --blue: #2563eb;
+  --blue-light: #eff6ff;
+  --blue-mid: #dbeafe;
+  --green: #16a34a;
+  --green-light: #f0fdf4;
+  --red: #dc2626;
+  --red-light: #fef2f2;
+  --amber: #d97706;
+  --amber-light: #fffbeb;
+  --border: #e5e7eb;
+  --border2: #d1d5db;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+  --font: 'Plus Jakarta Sans', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { background: var(--bg); font-family: var(--font); color: var(--ink); min-height: 100vh; font-size: 15px; }
+
+/* ── LAYOUT ── */
+.app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 13px 18px; display: flex; align-items: center; gap: 11px; position: sticky; top: 0; z-index: 100; }
+.topbar-logo { width: 34px; height: 34px; background: var(--blue); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+.topbar-name { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+.topbar-sub { font-size: 11px; color: var(--ink3); font-family: var(--mono); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.user-chip { display: flex; align-items: center; gap: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px 4px 4px; }
+.user-avatar { width: 24px; height: 24px; border-radius: 50%; }
+.user-name { font-size: 11px; font-weight: 500; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page { flex: 1; padding: 18px; display: none; }
+.page.active { display: block; }
+.bottomnav { background: var(--white); border-top: 1px solid var(--border); display: flex; padding: 8px 6px 14px; position: sticky; bottom: 0; }
+.bnav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; border: none; background: transparent; color: var(--ink3); cursor: pointer; padding: 6px 4px; border-radius: 10px; font-family: var(--font); transition: all .15s; }
+.bnav-btn .bicon { font-size: 20px; line-height: 1; }
+.bnav-btn .blabel { font-size: 10px; font-weight: 500; }
+.bnav-btn.active { color: var(--blue); background: var(--blue-light); }
+
+/* ── CARDS ── */
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 13px; box-shadow: var(--shadow); }
+.card-title { font-size: 13px; font-weight: 600; color: var(--ink2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+.card-title::before { content: ''; width: 3px; height: 14px; background: var(--blue); border-radius: 2px; display: block; }
+
+/* ── FORM ── */
+.field { margin-bottom: 13px; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink2); margin-bottom: 5px; letter-spacing: 0.2px; }
+input[type=text], input[type=email], input[type=tel], input[type=number], input[type=password], select, textarea {
+  width: 100%; padding: 11px 13px; border: 1.5px solid var(--border2); border-radius: var(--radius-sm);
+  font-family: var(--font); font-size: 14px; color: var(--ink); background: var(--white);
+  outline: none; transition: border-color .15s; appearance: none; -webkit-appearance: none;
+}
+input:focus, select:focus { border-color: var(--blue); }
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; padding-right: 36px; }
+.field-ro { padding: 11px 13px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--ink2); background: var(--bg); font-family: var(--mono); font-size: 13px; min-height: 42px; }
+
+/* ── BUTTONS ── */
+.btn { width: 100%; padding: 13px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; letter-spacing: 0.1px; }
+.btn:active { transform: scale(.98); }
+.btn-blue { background: var(--blue); color: #fff; }
+.btn-blue:hover { background: #1d4ed8; }
+.btn-outline { background: var(--white); color: var(--ink); border: 1.5px solid var(--border2); }
+.btn-outline:hover { background: var(--bg); }
+.btn-green { background: var(--green); color: #fff; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-sm { padding: 8px 14px; font-size: 13px; width: auto; }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { flex: 1; }
+.btn-google { background: var(--white); color: var(--ink); border: 1.5px solid var(--border2); display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; font-weight: 600; padding: 13px; border-radius: var(--radius-sm); cursor: pointer; width: 100%; font-family: var(--font); transition: all .15s; }
+.btn-google:hover { background: var(--bg); }
+.btn-google img { width: 20px; height: 20px; }
+
+/* ── ALERTS ── */
+.alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 9px; line-height: 1.5; }
+.alert-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+.alert-blue { background: var(--blue-light); border: 1px solid var(--blue-mid); color: #1e40af; }
+.alert-green { background: var(--green-light); border: 1px solid #bbf7d0; color: #15803d; }
+.alert-red { background: var(--red-light); border: 1px solid #fecaca; color: #991b1b; }
+.alert-amber { background: var(--amber-light); border: 1px solid #fde68a; color: #92400e; }
+.hidden { display: none !important; }
+
+/* ── BADGES ── */
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+.badge-green { background: var(--green-light); color: var(--green); }
+.badge-red { background: var(--red-light); color: var(--red); }
+.badge-blue { background: var(--blue-light); color: var(--blue); }
+.badge-amber { background: var(--amber-light); color: var(--amber); }
+
+/* ── SESSION CARD (teacher) ── */
+.session-card { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; border-radius: var(--radius); padding: 20px; margin-bottom: 13px; position: relative; overflow: hidden; }
+.session-card::after { content: ''; position: absolute; top: -20px; right: -20px; width: 120px; height: 120px; background: rgba(255,255,255,0.06); border-radius: 50%; }
+.session-code { font-family: var(--mono); font-size: 38px; font-weight: 700; letter-spacing: 6px; margin: 10px 0; text-align: center; }
+.session-timer { font-size: 12px; opacity: .8; text-align: center; font-family: var(--mono); }
+.session-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.session-tag { background: rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 500; }
+
+/* ── STATS ── */
+.stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 13px; }
+.stat-box { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; box-shadow: var(--shadow); }
+.stat-val { font-size: 28px; font-weight: 700; font-family: var(--mono); letter-spacing: -1px; color: var(--ink); }
+.stat-lbl { font-size: 11px; color: var(--ink3); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── STUDENT LIST ── */
+.student-row { display: flex; align-items: center; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.student-row:last-child { border-bottom: none; }
+.s-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--blue-mid); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--blue); flex-shrink: 0; overflow: hidden; }
+.s-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.s-info { flex: 1; min-width: 0; }
+.s-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-roll { font-size: 11px; color: var(--ink3); font-family: var(--mono); }
+.s-right { flex-shrink: 0; text-align: right; }
+
+/* ── GPS INDICATOR ── */
+.gps-ring { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--border); display: flex; align-items: center; justify-content: center; margin: 16px auto; position: relative; flex-direction: column; gap: 2px; }
+.gps-ring.ok { border-color: var(--green); background: var(--green-light); }
+.gps-ring.fail { border-color: var(--red); background: var(--red-light); }
+.gps-ring.checking { border-color: var(--blue); animation: pulse-border 1.2s infinite; }
+@keyframes pulse-border { 0%,100%{opacity:1}50%{opacity:.4} }
+.gps-icon { font-size: 26px; }
+.gps-label { font-size: 10px; font-weight: 600; font-family: var(--mono); }
+
+/* ── QR CODE ── */
+.qr-wrap { background: var(--white); border: 2px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; margin-bottom: 13px; }
+.qr-wrap canvas, .qr-wrap img { display: block; margin: 0 auto; }
+
+/* ── PROGRESS BAR ── */
+.pct-bar-wrap { margin-bottom: 4px; }
+.pct-bar-track { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.pct-bar-fill { height: 100%; border-radius: 3px; transition: width .6s; }
+.pct-green { background: var(--green); }
+.pct-amber { background: var(--amber); }
+.pct-red { background: var(--red); }
+
+/* ── SETUP SCREEN ── */
+.setup-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; padding: 24px; text-align: center; }
+.setup-logo { width: 72px; height: 72px; background: var(--blue); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 34px; margin: 0 auto 18px; }
+.setup-title { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+.setup-sub { font-size: 14px; color: var(--ink2); line-height: 1.6; margin-bottom: 28px; }
+
+/* ── NOTICE ── */
+.notice { font-size: 12px; color: var(--ink2); background: var(--bg); border-radius: var(--radius-sm); padding: 11px 13px; border-left: 3px solid var(--blue); line-height: 1.7; margin-bottom: 13px; }
+.notice b { color: var(--ink); }
+.notice a { color: var(--blue); }
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+.tab-bar { display: flex; gap: 4px; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 14px; }
+.tab { flex: 1; padding: 8px; text-align: center; font-size: 12px; font-weight: 600; border: none; background: transparent; color: var(--ink3); border-radius: 7px; cursor: pointer; font-family: var(--font); transition: all .15s; }
+.tab.active { background: var(--white); color: var(--blue); box-shadow: var(--shadow); }
+.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; margin: 20px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; padding: 28px 16px; color: var(--ink3); }
+.empty .big { font-size: 36px; margin-bottom: 8px; }
+.empty p { font-size: 13px; }
+.live-dot { display: inline-block; width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: blink 1.4s infinite; margin-right: 4px; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.2} }
+.mono { font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     SETUP SCREEN (shown until Firebase configured)
+══════════════════════════════════════════ -->
+<div id="setup-screen" class="hidden">
+  <div class="setup-screen">
+    <div class="setup-logo">📋</div>
+    <div class="setup-title">SmartAttend</div>
+    <div class="setup-sub">Firebase is not configured yet.<br>Open the <b>SETUP GUIDE</b> file and follow the steps — takes about 5 minutes.</div>
+    <div class="notice" style="text-align:left;width:100%">
+      <b>Quick steps:</b><br>
+      1. Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a><br>
+      2. Create project → Add web app → copy config<br>
+      3. Open <b>index.html</b> in a text editor<br>
+      4. Paste config in the FIREBASE CONFIG section<br>
+      5. Upload to <a href="https://tiiny.host" target="_blank">tiiny.host</a> → share URL
+    </div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="app" id="main-app" style="display:none">
+<div class="topbar">
+  <div class="topbar-logo">📋</div>
+  <div>
+    <div class="topbar-name">SmartAttend</div>
+    <div class="topbar-sub" id="topbar-sub">Loading...</div>
+  </div>
+  <div class="topbar-right" id="topbar-right"></div>
+</div>
+
+<!-- ══ LOGIN PAGE ══ -->
+<div class="page active" id="page-login">
+  <div class="setup-screen" style="min-height:75vh">
+    <div class="setup-logo">📋</div>
+    <div class="setup-title">SmartAttend</div>
+    <div class="setup-sub">GPS-verified attendance.<br>Sign in with your Google account to continue.</div>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+      Continue with Google
+    </button>
+    <div class="alert alert-blue" style="margin-top:16px;text-align:left">
+      <span class="alert-icon">ℹ️</span>
+      <span>Students: use your college Gmail. Teacher: use your personal/college Gmail — you'll be recognised automatically.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STUDENT: REGISTER PAGE ══ -->
+<div class="page hidden" id="page-register">
+  <div style="margin-bottom:16px">
+    <div style="font-size:20px;font-weight:700;letter-spacing:-0.4px">Complete Profile</div>
+    <div style="font-size:13px;color:var(--ink2);margin-top:3px">Fill once — your Gmail links everything</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Your details</div>
+    <div class="field"><label>Full Name</label><div class="field-ro" id="prof-name-ro"></div></div>
+    <div class="field"><label>Gmail</label><div class="field-ro" id="prof-email-ro"></div></div>
+    <div class="field"><label>Roll Number</label><input type="text" id="prof-roll" placeholder="e.g. CS-2024-001"></div>
+    <div class="field"><label>Mobile Number</label><input type="tel" id="prof-mobile" placeholder="e.g. 03001234567"></div>
+    <div class="field"><label>Department</label><select id="prof-dept"><option value="">— Select —</option></select></div>
+    <div class="field"><label>Semester</label><select id="prof-sem"><option value="">— Select —</option></select></div>
+    <div class="alert hidden" id="prof-alert"></div>
+    <button class="btn btn-blue" onclick="saveProfile()">Save &amp; Continue</button>
+  </div>
+</div>
+
+<!-- ══ STUDENT: MARK ATTENDANCE PAGE ══ -->
+<div class="page hidden" id="page-attend">
+  <div style="margin-bottom:16px">
+    <div style="font-size:20px;font-weight:700;letter-spacing:-0.4px">Mark Attendance</div>
+    <div style="font-size:13px;color:var(--ink2);margin-top:3px">Enter session code or scan QR from your teacher</div>
+  </div>
+
+  <!-- Code entry -->
+  <div class="card" id="att-code-card">
+    <div class="card-title">Session code</div>
+    <div class="field">
+      <label>6-digit code</label>
+      <input type="text" id="att-code-input" placeholder="e.g. 472819" maxlength="6" inputmode="numeric"
+        style="font-family:var(--mono);font-size:24px;letter-spacing:8px;text-align:center"
+        oninput="this.value=this.value.replace(/\D/g,'');if(this.value.length===6)lookupSession()">
+    </div>
+    <div class="alert hidden" id="att-code-alert"></div>
+    <button class="btn btn-blue" onclick="lookupSession()">Find Session</button>
+  </div>
+
+  <!-- Session found -->
+  <div class="card hidden" id="att-session-card">
+    <div class="card-title">Session found</div>
+    <div id="att-session-info" style="margin-bottom:14px"></div>
+    <div class="alert hidden" id="att-gps-alert"></div>
+    <div class="gps-ring checking" id="gps-ring">
+      <div class="gps-icon">📍</div>
+      <div class="gps-label" id="gps-label">Checking</div>
+    </div>
+    <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:14px" id="gps-detail"></div>
+    <div class="alert hidden" id="att-mark-alert"></div>
+    <button class="btn btn-green hidden" id="att-mark-btn" onclick="markAttendance()">✓ Mark Me Present</button>
+    <button class="btn btn-outline" onclick="resetAttendance()" style="margin-top:8px">Enter different code</button>
+  </div>
+
+  <!-- Backup code section -->
+  <div class="card">
+    <div class="card-title">No phone / GPS issues?</div>
+    <div class="notice" style="margin-bottom:10px">Ask your teacher for a one-time backup code if your GPS or internet is not working properly.</div>
+    <div class="field"><label>One-time backup code</label>
+      <input type="text" id="backup-code-input" placeholder="Teacher gives you this" maxlength="8" style="font-family:var(--mono);letter-spacing:4px;text-align:center">
+    </div>
+    <div class="alert hidden" id="backup-alert"></div>
+    <button class="btn btn-outline" onclick="useBackupCode()">Use Backup Code</button>
+  </div>
+</div>
+
+<!-- ══ STUDENT: MY STATS PAGE ══ -->
+<div class="page hidden" id="page-stats">
+  <div style="margin-bottom:16px">
+    <div style="font-size:20px;font-weight:700;letter-spacing:-0.4px">My Attendance</div>
+    <div style="font-size:13px;color:var(--ink2);margin-top:3px">Your personal record</div>
+  </div>
+  <div id="stats-content">
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<!-- ══ TEACHER: DASHBOARD ══ -->
+<div class="page hidden" id="page-teacher">
+  <div style="margin-bottom:14px">
+    <div style="font-size:20px;font-weight:700;letter-spacing:-0.4px">Teacher Dashboard</div>
+    <div style="font-size:13px;color:var(--ink2);margin-top:3px" id="t-role-label">Loading...</div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="tTab('session',this)">Session</button>
+    <button class="tab" onclick="tTab('records',this)">Records</button>
+    <button class="tab" onclick="tTab('students',this)">Students</button>
+    <button class="tab" onclick="tTab('settings',this)">Settings</button>
+  </div>
+
+  <!-- SESSION TAB -->
+  <div id="tt-session">
+    <!-- Active session display -->
+    <div id="active-session-panel" class="hidden">
+      <div class="session-card" id="session-card-display">
+        <div style="font-size:12px;opacity:.7;font-weight:500"><span class="live-dot"></span>SESSION LIVE</div>
+        <div class="session-code" id="sc-code">——</div>
+        <div class="session-timer" id="sc-timer">-- min remaining</div>
+        <div class="session-meta" id="sc-meta"></div>
+      </div>
+      <div class="qr-wrap">
+        <div id="qr-placeholder" style="font-size:13px;color:var(--ink3);padding:12px">Generating QR...</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-val" id="live-present">0</div><div class="stat-lbl">Present</div></div>
+        <div class="stat-box"><div class="stat-val" id="live-total">0</div><div class="stat-lbl">Enrolled</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Live attendance</div>
+        <div id="live-list"></div>
+      </div>
+      <button class="btn btn-red" onclick="endSession()">End Session</button>
+    </div>
+
+    <!-- New session form -->
+    <div id="new-session-panel">
+      <div class="card">
+        <div class="card-title">Start new session</div>
+        <div class="field"><label>Subject / Class</label><input type="text" id="ns-subject" placeholder="e.g. Data Structures Lab"></div>
+        <div class="field"><label>Department</label><select id="ns-dept"><option value="">All departments</option></select></div>
+        <div class="field"><label>Semester</label><select id="ns-sem"><option value="">All semesters</option></select></div>
+        <div class="field"><label>Time window (minutes students can mark)</label>
+          <select id="ns-window">
+            <option value="5">5 minutes</option>
+            <option value="10" selected>10 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+          </select>
+        </div>
+        <div class="field"><label>GPS radius (meters)</label>
+          <select id="ns-radius">
+            <option value="20">20 meters (strict)</option>
+            <option value="50" selected>50 meters (recommended)</option>
+            <option value="100">100 meters (relaxed)</option>
+            <option value="200">200 meters (building-wide)</option>
+          </select>
+        </div>
+        <div class="field"><label>Your current location</label>
+          <div class="field-ro" id="ns-location-display">Click below to get location</div>
+        </div>
+        <button class="btn btn-outline" onclick="getTeacherLocation()" style="margin-bottom:10px">📍 Get my location</button>
+        <div class="alert hidden" id="ns-alert"></div>
+        <button class="btn btn-blue" onclick="startSession()" id="ns-start-btn" disabled>🚀 Start Session</button>
+      </div>
+      <!-- Backup codes -->
+      <div class="card">
+        <div class="card-title">Backup codes for students</div>
+        <div class="notice">Generate a one-time code for students with phone/GPS issues. Each code works once only.</div>
+        <div class="field"><label>Student roll number</label><input type="text" id="bc-roll" placeholder="e.g. CS-2024-001"></div>
+        <div class="field"><label>For which session code</label><input type="text" id="bc-session" placeholder="Session code (6 digits)" style="font-family:var(--mono);letter-spacing:4px"></div>
+        <div class="alert hidden" id="bc-alert"></div>
+        <button class="btn btn-outline" onclick="generateBackupCode()">Generate Backup Code</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECORDS TAB -->
+  <div id="tt-records" class="hidden">
+    <div class="card">
+      <div class="card-title">Filter</div>
+      <div class="field"><label>Department</label><select id="rec-dept-filter" onchange="loadRecords()"><option value="">All</option></select></div>
+      <div class="field"><label>Semester</label><select id="rec-sem-filter" onchange="loadRecords()"><option value="">All</option></select></div>
+    </div>
+    <div id="records-content"><div class="spinner"></div></div>
+    <button class="btn btn-outline" onclick="exportCSV()" style="margin-top:4px">⬇ Export CSV</button>
+  </div>
+
+  <!-- STUDENTS TAB -->
+  <div id="tt-students" class="hidden">
+    <div class="card">
+      <div class="card-title">Import students (CSV)</div>
+      <div class="notice">CSV format: Roll, Name, Email, Mobile, Department, Semester</div>
+      <input type="file" id="csv-input" accept=".csv" onchange="importStudentsCSV(this)" style="display:none">
+      <button class="btn btn-outline" onclick="document.getElementById('csv-input').click()" style="margin-bottom:8px">📄 Import CSV</button>
+      <div class="alert hidden" id="csv-alert"></div>
+      <div class="divider"></div>
+      <div class="card-title">Add single student</div>
+      <div class="field"><label>Roll Number</label><input type="text" id="add-roll" placeholder="CS-2024-001"></div>
+      <div class="field"><label>Full Name</label><input type="text" id="add-name"></div>
+      <div class="field"><label>Gmail (optional — they can add on login)</label><input type="email" id="add-email" placeholder="student@gmail.com"></div>
+      <div class="field"><label>Department</label><select id="add-dept"><option value="">— Select —</option></select></div>
+      <div class="field"><label>Semester</label><select id="add-sem"><option value="">— Select —</option></select></div>
+      <div class="alert hidden" id="add-alert"></div>
+      <button class="btn btn-blue" onclick="addStudentManual()">Add Student</button>
+    </div>
+    <div class="card" id="student-list-card">
+      <div class="card-title">Registered students</div>
+      <div id="student-list-content"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div id="tt-settings" class="hidden">
+    <div class="card">
+      <div class="card-title">Departments</div>
+      <div id="dept-list-display" style="margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="new-dept" placeholder="Department name" style="flex:1;margin-bottom:0">
+        <button class="btn btn-blue btn-sm" onclick="addDept()">Add</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Attendance threshold</div>
+      <div class="field"><label>Minimum % required</label>
+        <input type="number" id="thresh-input" min="0" max="100" placeholder="e.g. 75">
+      </div>
+      <button class="btn btn-outline" onclick="saveThreshold()">Save threshold</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Google Sheet sync</div>
+      <div class="notice">Paste your Apps Script URL to auto-log every attendance to Google Sheet.</div>
+      <div class="field"><input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:12px;font-family:var(--mono)"></div>
+      <button class="btn btn-outline" onclick="saveSheetUrl()">Save URL</button>
+      <div class="alert hidden" id="sheet-alert"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Teacher emails</div>
+      <div class="notice">Add Gmail addresses that should have teacher access.</div>
+      <div id="teacher-emails-list" style="margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="email" id="new-teacher-email" placeholder="teacher@gmail.com" style="flex:1;margin-bottom:0">
+        <button class="btn btn-blue btn-sm" onclick="addTeacherEmail()">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottomnav" id="bottomnav">
+  <button class="bnav-btn active" id="nav-attend" onclick="showPage('attend')">
+    <div class="bicon">✅</div><div class="blabel">Attend</div>
+  </button>
+  <button class="bnav-btn" id="nav-stats" onclick="showPage('stats');loadMyStats()">
+    <div class="bicon">📊</div><div class="blabel">My Stats</div>
+  </button>
+  <button class="bnav-btn hidden" id="nav-teacher" onclick="showPage('teacher');loadTeacherData()">
+    <div class="bicon">🖥️</div><div class="blabel">Teacher</div>
+  </button>
+</div>
+</div><!-- end .app -->
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// STEP 1 OF 2 — PASTE YOUR FIREBASE CONFIG VALUES BELOW
+// How to get these: Firebase Console → Project Settings → Your Apps → Web App
+// Full instructions in SETUP_GUIDE.md
+// ══════════════════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "",   // e.g. "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXX"
+  authDomain:        "",   // e.g. "smartattend-xxxxx.firebaseapp.com"
+  databaseURL:       "",   // e.g. "https://smartattend-xxxxx-default-rtdb.asia-south1.firebasedatabase.app"
+  projectId:         "",   // e.g. "smartattend-xxxxx"
+  storageBucket:     "",   // e.g. "smartattend-xxxxx.appspot.com"
+  messagingSenderId: "",   // e.g. "123456789012"
+  appId:             ""    // e.g. "1:123456789012:web:abcdef1234567890"
+};
+// ══════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════
+// STEP 2 OF 2 — ADD YOUR GMAIL AS TEACHER
+// Replace the empty brackets with your Gmail address
+// You can add more teacher emails separated by commas
+// ══════════════════════════════════════════════════════════════
+const APP_CONFIG = {
+  departments:   ['Computer Science','Electronics','Mechanical','Civil','Information Technology','Electrical'],
+  semesters:     ['1st Sem','2nd Sem','3rd Sem','4th Sem','5th Sem','6th Sem','7th Sem','8th Sem'],
+  threshold:     75,      // attendance warning below this percentage
+  sheetUrl:      '',      // optional — paste Apps Script URL here (or set via Teacher > Settings)
+  teacherEmails: []       // e.g. ['yourname@gmail.com'] or ['t1@gmail.com','t2@gmail.com']
+};
+// ══════════════════════════════════════════════════════════════
+
+// State
+let db, auth;
+let currentUser = null;
+let userProfile = null;
+let isTeacher   = false;
+let activeSession = null;
+let sessionTimer  = null;
+let teacherLat = null, teacherLng = null;
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+function init() {
+  if (!FIREBASE_CONFIG.apiKey) {
+    document.getElementById('setup-screen').classList.remove('hidden');
+    return;
+  }
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db   = firebase.database();
+  auth = firebase.auth();
+  document.getElementById('main-app').style.display = 'flex';
+  populateSelects();
+  loadAppConfig();
+
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      currentUser = user;
+      checkUserProfile(user);
+    } else {
+      currentUser = null;
+      userProfile = null;
+      showPage('login');
+      document.getElementById('topbar-right').innerHTML = '';
+      document.getElementById('topbar-sub').textContent = 'Sign in to continue';
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════════════
+function signInWithGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(e => {
+    // Popup blocked on some phones — try redirect
+    auth.signInWithRedirect(provider);
+  });
+}
+
+async function checkUserProfile(user) {
+  // Check if teacher
+  isTeacher = APP_CONFIG.teacherEmails.includes(user.email);
+  // Also check DB for teacher emails saved there
+  const tSnap = await db.ref('config/teacherEmails').get();
+  if (tSnap.exists()) {
+    const dbTeachers = tSnap.val() || [];
+    if (dbTeachers.includes(user.email)) isTeacher = true;
+  }
+
+  // Update topbar
+  const img = user.photoURL ? `<img src="${user.photoURL}" class="user-avatar">` : '';
+  const firstName = (user.displayName||'').split(' ')[0];
+  document.getElementById('topbar-right').innerHTML =
+    `<div class="user-chip">${img}<span class="user-name">${firstName}</span></div>`;
+  document.getElementById('topbar-sub').textContent = isTeacher ? 'Teacher view' : 'Student view';
+
+  if (isTeacher) {
+    document.getElementById('nav-teacher').classList.remove('hidden');
+    document.getElementById('t-role-label').textContent = user.email;
+  }
+
+  // Check if student has profile
+  const snap = await db.ref('students/' + sanitizeEmail(user.email)).get();
+  if (snap.exists()) {
+    userProfile = snap.val();
+    showStudentApp();
+  } else if (isTeacher) {
+    showTeacherApp();
+  } else {
+    // Show profile completion
+    showProfileForm(user);
+  }
+}
+
+function sanitizeEmail(email) {
+  return email.replace(/\./g, '_').replace(/@/g, '__at__');
+}
+
+function showStudentApp() {
+  showPage('attend');
+}
+
+function showTeacherApp() {
+  showPage('teacher');
+  loadTeacherData();
+}
+
+function showProfileForm(user) {
+  document.getElementById('prof-name-ro').textContent = user.displayName || '';
+  document.getElementById('prof-email-ro').textContent = user.email || '';
+  showPage('register');
+}
+
+// ══════════════════════════════════════════════════════════════
+// STUDENT PROFILE SAVE
+// ══════════════════════════════════════════════════════════════
+async function saveProfile() {
+  const roll   = document.getElementById('prof-roll').value.trim().toUpperCase();
+  const mobile = document.getElementById('prof-mobile').value.trim();
+  const dept   = document.getElementById('prof-dept').value;
+  const sem    = document.getElementById('prof-sem').value;
+
+  if (!roll || !mobile || !dept || !sem) {
+    showAlert('prof-alert','amber','Please fill all fields.');
+    return;
+  }
+
+  const profile = {
+    uid:    currentUser.uid,
+    name:   currentUser.displayName,
+    email:  currentUser.email,
+    photo:  currentUser.photoURL || '',
+    roll, mobile, dept, sem,
+    registeredAt: Date.now()
+  };
+
+  // Check if roll already claimed by different email
+  const rollSnap = await db.ref('rollIndex/' + roll.replace(/-/g,'_')).get();
+  if (rollSnap.exists() && rollSnap.val() !== sanitizeEmail(currentUser.email)) {
+    showAlert('prof-alert','red','This roll number is already registered to another account. Contact your teacher.');
+    return;
+  }
+
+  await db.ref('students/' + sanitizeEmail(currentUser.email)).set(profile);
+  await db.ref('rollIndex/' + roll.replace(/-/g,'_')).set(sanitizeEmail(currentUser.email));
+
+  userProfile = profile;
+  showAlert('prof-alert','green','Profile saved!');
+  setTimeout(() => showStudentApp(), 800);
+}
+
+// ══════════════════════════════════════════════════════════════
+// ATTENDANCE — STUDENT SIDE
+// ══════════════════════════════════════════════════════════════
+let currentSessionData = null;
+
+async function lookupSession() {
+  const code = document.getElementById('att-code-input').value.trim();
+  if (code.length !== 6) { showAlert('att-code-alert','amber','Enter the full 6-digit code.'); return; }
+
+  showAlert('att-code-alert','blue','Looking up session...');
+  const snap = await db.ref('sessions/' + code).get();
+
+  if (!snap.exists()) {
+    showAlert('att-code-alert','red','Session not found. Check the code and try again.'); return;
+  }
+
+  const session = snap.val();
+  if (session.status === 'ended') {
+    showAlert('att-code-alert','red','This session has ended.'); return;
+  }
+  if (Date.now() > session.expiresAt) {
+    showAlert('att-code-alert','red','This session has expired (' + session.windowMin + ' min window closed).'); return;
+  }
+
+  // Check if already marked
+  const key = sanitizeEmail(currentUser.email);
+  if (session.attendance && session.attendance[key]) {
+    showAlert('att-code-alert','green','You already marked attendance for this session ✓'); return;
+  }
+
+  currentSessionData = { code, ...session };
+  hideAlert('att-code-alert');
+  document.getElementById('att-code-card').classList.add('hidden');
+  document.getElementById('att-session-card').classList.remove('hidden');
+
+  // Show session info
+  const remaining = Math.max(0, Math.round((session.expiresAt - Date.now()) / 60000));
+  document.getElementById('att-session-info').innerHTML = `
+    <div style="font-size:15px;font-weight:600;margin-bottom:6px">${session.subject}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <span class="badge badge-blue">${session.dept||'All'} ${session.sem||''}</span>
+      <span class="badge badge-amber">⏱ ${remaining} min left</span>
+      <span class="badge badge-green">📍 ${session.radius}m radius</span>
+    </div>`;
+
+  // Start GPS check
+  startGPSCheck(session.lat, session.lng, session.radius);
+}
+
+function startGPSCheck(targetLat, targetLng, radius) {
+  const ring = document.getElementById('gps-ring');
+  const label = document.getElementById('gps-label');
+  const detail = document.getElementById('gps-detail');
+  const markBtn = document.getElementById('att-mark-btn');
+
+  ring.className = 'gps-ring checking';
+  label.textContent = 'Checking';
+  detail.textContent = 'Getting your GPS location...';
+  markBtn.classList.add('hidden');
+
+  if (!navigator.geolocation) {
+    ring.className = 'gps-ring fail';
+    label.textContent = 'No GPS';
+    showAlert('att-gps-alert','red','Your device does not support GPS. Use the backup code from your teacher.');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const dist = getDistance(pos.coords.latitude, pos.coords.longitude, targetLat, targetLng);
+      const distM = Math.round(dist);
+      detail.textContent = `You are ${distM}m from class (allowed: ${radius}m)`;
+
+      if (dist <= radius) {
+        ring.className = 'gps-ring ok';
+        label.textContent = 'In range';
+        showAlert('att-gps-alert','green',`✓ Location verified — you are ${distM}m from class.`);
+        markBtn.classList.remove('hidden');
+      } else {
+        ring.className = 'gps-ring fail';
+        label.textContent = 'Too far';
+        showAlert('att-gps-alert','red',`You are ${distM}m away. Must be within ${radius}m of class. If you are physically present, ask teacher for a backup code.`);
+      }
+    },
+    err => {
+      ring.className = 'gps-ring fail';
+      label.textContent = 'GPS error';
+      const msg = err.code===1
+        ? 'Location access denied. Please allow location in your browser, then try again.'
+        : 'Could not get your location. Try moving to a window or open area, then retry.';
+      showAlert('att-gps-alert','red', msg);
+      detail.textContent = 'Tap "Find Session" again after allowing location.';
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+  );
+}
+
+async function markAttendance() {
+  if (!currentSessionData || !currentUser) return;
+  const btn = document.getElementById('att-mark-btn');
+  btn.disabled = true;
+  btn.textContent = 'Marking...';
+
+  const key = sanitizeEmail(currentUser.email);
+  const record = {
+    name:   userProfile?.name  || currentUser.displayName,
+    email:  currentUser.email,
+    roll:   userProfile?.roll  || '—',
+    dept:   userProfile?.dept  || '—',
+    sem:    userProfile?.sem   || '—',
+    time:   Date.now(),
+    method: 'gps'
+  };
+
+  await db.ref('sessions/' + currentSessionData.code + '/attendance/' + key).set(record);
+  await db.ref('attendance/' + key + '/' + currentSessionData.code).set({
+    subject:   currentSessionData.subject,
+    sessionCode: currentSessionData.code,
+    time:      Date.now(),
+    method:    'gps'
+  });
+
+  sendToSheet({ ...record, subject: currentSessionData.subject, sessionCode: currentSessionData.code });
+
+  showAlert('att-mark-alert','green','✅ Attendance marked successfully! You are present.');
+  btn.textContent = '✓ Marked Present';
+  btn.classList.remove('btn-green');
+  btn.classList.add('btn-outline');
+  document.getElementById('gps-ring').className = 'gps-ring ok';
+}
+
+function resetAttendance() {
+  currentSessionData = null;
+  document.getElementById('att-code-card').classList.remove('hidden');
+  document.getElementById('att-session-card').classList.add('hidden');
+  document.getElementById('att-code-input').value = '';
+  hideAlert('att-code-alert');
+  hideAlert('att-gps-alert');
+  hideAlert('att-mark-alert');
+  document.getElementById('att-mark-btn').classList.add('hidden');
+  document.getElementById('att-mark-btn').disabled = false;
+  document.getElementById('att-mark-btn').textContent = '✓ Mark Me Present';
+}
+
+// Backup code
+async function useBackupCode() {
+  const code = document.getElementById('backup-code-input').value.trim().toUpperCase();
+  if (!code) { showAlert('backup-alert','amber','Enter the backup code from your teacher.'); return; }
+
+  const snap = await db.ref('backupCodes/' + code).get();
+  if (!snap.exists()) { showAlert('backup-alert','red','Invalid code. Check with your teacher.'); return; }
+
+  const bc = snap.val();
+  if (bc.used) { showAlert('backup-alert','red','This code has already been used.'); return; }
+  if (bc.email && bc.email !== currentUser.email) {
+    showAlert('backup-alert','red','This code was issued for a different student.'); return;
+  }
+
+  // Mark attendance
+  const sKey = sanitizeEmail(currentUser.email);
+  const sessionCode = bc.sessionCode;
+  const record = {
+    name:   userProfile?.name || currentUser.displayName,
+    email:  currentUser.email,
+    roll:   userProfile?.roll || bc.roll || '—',
+    dept:   userProfile?.dept || '—',
+    sem:    userProfile?.sem  || '—',
+    time:   Date.now(),
+    method: 'backup-code'
+  };
+
+  await db.ref('sessions/' + sessionCode + '/attendance/' + sKey).set(record);
+  await db.ref('attendance/' + sKey + '/' + sessionCode).set({
+    subject:     bc.subject || 'Class',
+    sessionCode, time: Date.now(), method: 'backup-code'
+  });
+  await db.ref('backupCodes/' + code + '/used').set(true);
+  await db.ref('backupCodes/' + code + '/usedBy').set(currentUser.email);
+
+  showAlert('backup-alert','green','✅ Attendance marked via backup code!');
+  document.getElementById('backup-code-input').value = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// MY STATS
+// ══════════════════════════════════════════════════════════════
+async function loadMyStats() {
+  if (!currentUser) return;
+  const el = document.getElementById('stats-content');
+  el.innerHTML = '<div class="spinner"></div>';
+
+  const key  = sanitizeEmail(currentUser.email);
+  const snap = await db.ref('attendance/' + key).get();
+
+  // Get total sessions for this student's dept/sem
+  const sessSnap = await db.ref('sessions').get();
+  let totalSessions = 0, attended = 0;
+  const records = [];
+
+  if (sessSnap.exists()) {
+    sessSnap.forEach(child => {
+      const s = child.val();
+      if (s.status === 'ended') {
+        const myDept = userProfile?.dept, mySem = userProfile?.sem;
+        if (!s.dept || s.dept === myDept || !myDept) {
+          if (!s.sem || s.sem === mySem || !mySem) {
+            totalSessions++;
+            if (s.attendance && s.attendance[key]) {
+              attended++;
+              records.push({ subject: s.subject, time: s.attendance[key].time, code: child.key });
+            }
+          }
+        }
+      }
+    });
+  }
+
+  const pct = totalSessions > 0 ? Math.round(attended / totalSessions * 100) : null;
+  const pctClass = pct === null ? '' : pct >= APP_CONFIG.threshold ? 'pct-green' : pct >= APP_CONFIG.threshold - 10 ? 'pct-amber' : 'pct-red';
+  const threshold = APP_CONFIG.threshold;
+
+  let html = `
+    <div class="card" style="text-align:center;padding:20px">
+      <div style="font-size:14px;color:var(--ink2);margin-bottom:6px">${userProfile?.name||currentUser.displayName}</div>
+      <div style="font-size:11px;color:var(--ink3);font-family:var(--mono);margin-bottom:14px">${userProfile?.roll||''} · ${userProfile?.dept||''}</div>
+      <div class="stats-row" style="margin-bottom:10px">
+        <div class="stat-box"><div class="stat-val">${attended}</div><div class="stat-lbl">Attended</div></div>
+        <div class="stat-box"><div class="stat-val">${totalSessions}</div><div class="stat-lbl">Total</div></div>
+      </div>`;
+
+  if (pct !== null) {
+    html += `<div class="pct-bar-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600">
+        <span>Attendance</span><span>${pct}%</span>
+      </div>
+      <div class="pct-bar-track"><div class="pct-bar-fill ${pctClass}" style="width:${pct}%"></div></div>
+    </div>`;
+    if (pct < threshold) {
+      html += `<div class="alert alert-red" style="margin-top:10px;text-align:left"><span class="alert-icon">⚠️</span><span>Your attendance (${pct}%) is below the required ${threshold}%.</span></div>`;
+    } else {
+      html += `<div class="alert alert-green" style="margin-top:10px;text-align:left"><span class="alert-icon">✓</span><span>Good standing! Meeting the ${threshold}% requirement.</span></div>`;
+    }
+  }
+  html += '</div>';
+
+  // Recent records
+  if (records.length > 0) {
+    records.sort((a,b) => b.time - a.time);
+    html += '<div class="card"><div class="card-title">Recent classes</div>';
+    html += records.slice(0,10).map(r => `
+      <div class="student-row">
+        <div style="font-size:20px">📗</div>
+        <div class="s-info">
+          <div class="s-name">${r.subject}</div>
+          <div class="s-roll">${new Date(r.time).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>
+        </div>
+        <span class="badge badge-green">Present</span>
+      </div>`).join('');
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEACHER — SESSION MANAGEMENT
+// ══════════════════════════════════════════════════════════════
+async function getTeacherLocation() {
+  const display = document.getElementById('ns-location-display');
+  display.textContent = 'Getting location...';
+  if (!navigator.geolocation) { display.textContent = 'GPS not available'; return; }
+
+  navigator.geolocation.getCurrentPosition(pos => {
+    teacherLat = pos.coords.latitude;
+    teacherLng = pos.coords.longitude;
+    display.textContent = `${teacherLat.toFixed(5)}, ${teacherLng.toFixed(5)} (accuracy: ±${Math.round(pos.coords.accuracy)}m)`;
+    document.getElementById('ns-start-btn').disabled = false;
+    showAlert('ns-alert','green','Location captured! You can now start the session.');
+  }, err => {
+    display.textContent = 'Location error — allow location access';
+    showAlert('ns-alert','red','Please allow location access and try again.');
+  }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+}
+
+async function startSession() {
+  if (!teacherLat) { showAlert('ns-alert','amber','Get your location first.'); return; }
+  const subject = document.getElementById('ns-subject').value.trim();
+  if (!subject) { showAlert('ns-alert','amber','Enter a subject/class name.'); return; }
+
+  const code     = generateCode();
+  const windowMin = parseInt(document.getElementById('ns-window').value);
+  const radius   = parseInt(document.getElementById('ns-radius').value);
+  const dept     = document.getElementById('ns-dept').value;
+  const sem      = document.getElementById('ns-sem').value;
+
+  const session = {
+    code, subject, dept, sem,
+    lat: teacherLat, lng: teacherLng,
+    radius, windowMin,
+    startedAt: Date.now(),
+    expiresAt: Date.now() + windowMin * 60 * 1000,
+    status: 'active',
+    createdBy: currentUser.email
+  };
+
+  await db.ref('sessions/' + code).set(session);
+  activeSession = session;
+  showActiveSession(session);
+}
+
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function showActiveSession(session) {
+  document.getElementById('new-session-panel').classList.add('hidden');
+  document.getElementById('active-session-panel').classList.remove('hidden');
+  document.getElementById('sc-code').textContent = session.code;
+  document.getElementById('sc-meta').innerHTML = `
+    <span class="session-tag">${session.subject}</span>
+    <span class="session-tag">${session.dept||'All'} ${session.sem||''}</span>
+    <span class="session-tag">📍 ${session.radius}m</span>
+    <span class="session-tag">⏱ ${session.windowMin}min</span>`;
+
+  // Generate simple QR as text URL (for display)
+  const qr = document.getElementById('qr-placeholder');
+  qr.innerHTML = `
+    <div style="font-size:13px;color:var(--ink2);margin-bottom:8px">Share this code with students:</div>
+    <div style="font-size:48px;font-family:var(--mono);font-weight:700;letter-spacing:8px;color:var(--blue)">${session.code}</div>
+    <div style="font-size:11px;color:var(--ink3);margin-top:6px">Students enter this code in the Attend tab</div>`;
+
+  // Timer
+  sessionTimer = setInterval(() => {
+    const rem = Math.max(0, session.expiresAt - Date.now());
+    const mins = Math.floor(rem / 60000);
+    const secs = Math.floor((rem % 60000) / 1000);
+    document.getElementById('sc-timer').textContent =
+      rem > 0 ? `${mins}:${secs.toString().padStart(2,'0')} remaining` : 'Window closed — session still open for records';
+  }, 1000);
+
+  // Live attendance listener
+  db.ref('sessions/' + session.code + '/attendance').on('value', snap => {
+    const data = snap.val() || {};
+    const list = Object.values(data);
+    document.getElementById('live-present').textContent = list.length;
+    document.getElementById('live-list').innerHTML = list.length === 0
+      ? '<div class="empty"><p>Waiting for students...</p></div>'
+      : list.map(r => `
+        <div class="student-row">
+          <div class="s-avatar">${(r.name||'?')[0].toUpperCase()}</div>
+          <div class="s-info">
+            <div class="s-name">${r.name||'—'}</div>
+            <div class="s-roll">${r.roll} · ${r.dept} <span class="badge ${r.method==='gps'?'badge-green':'badge-amber'}">${r.method}</span></div>
+          </div>
+          <div style="font-size:11px;color:var(--ink3)">${new Date(r.time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>`).join('');
+  });
+
+  // Student count
+  loadEnrolledCount(session.dept, session.sem);
+}
+
+async function loadEnrolledCount(dept, sem) {
+  const snap = await db.ref('students').get();
+  if (!snap.exists()) { document.getElementById('live-total').textContent = 0; return; }
+  let count = 0;
+  snap.forEach(child => {
+    const s = child.val();
+    if ((!dept || s.dept === dept) && (!sem || s.sem === sem)) count++;
+  });
+  document.getElementById('live-total').textContent = count;
+}
+
+async function endSession() {
+  if (!activeSession) return;
+  if (!confirm('End this session? Students can no longer mark attendance.')) return;
+  await db.ref('sessions/' + activeSession.code + '/status').set('ended');
+  clearInterval(sessionTimer);
+  db.ref('sessions/' + activeSession.code + '/attendance').off();
+  activeSession = null;
+  document.getElementById('active-session-panel').classList.add('hidden');
+  document.getElementById('new-session-panel').classList.remove('hidden');
+  showAlert('ns-alert','green','Session ended and saved.');
+}
+
+// Backup code generation
+async function generateBackupCode() {
+  const roll    = document.getElementById('bc-roll').value.trim().toUpperCase();
+  const sessCode = document.getElementById('bc-session').value.trim();
+  if (!roll || !sessCode) { showAlert('bc-alert','amber','Enter roll number and session code.'); return; }
+
+  // Verify session exists
+  const snap = await db.ref('sessions/' + sessCode).get();
+  if (!snap.exists()) { showAlert('bc-alert','red','Session not found.'); return; }
+  const session = snap.val();
+
+  // Find student email from roll
+  const idxSnap = await db.ref('rollIndex/' + roll.replace(/-/g,'_')).get();
+  const studentEmail = idxSnap.exists() ? idxSnap.val().replace(/_/g,'.').replace(/__at__/g,'@') : null;
+
+  const bc = Math.random().toString(36).substring(2,10).toUpperCase();
+  await db.ref('backupCodes/' + bc).set({
+    roll, email: studentEmail, sessionCode: sessCode,
+    subject: session.subject, used: false,
+    createdAt: Date.now(), createdBy: currentUser.email
+  });
+
+  showAlert('bc-alert','green', `Backup code for ${roll}: ${bc}\nGive this to the student — works once only.`);
+  document.getElementById('bc-roll').value = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEACHER — RECORDS & STUDENTS
+// ══════════════════════════════════════════════════════════════
+async function loadRecords() {
+  const el = document.getElementById('records-content');
+  el.innerHTML = '<div class="spinner"></div>';
+  const dept = document.getElementById('rec-dept-filter').value;
+  const sem  = document.getElementById('rec-sem-filter').value;
+
+  const [studSnap, sessSnap] = await Promise.all([
+    db.ref('students').get(),
+    db.ref('sessions').get()
+  ]);
+
+  if (!studSnap.exists()) { el.innerHTML = '<div class="empty"><div class="big">📋</div><p>No students registered yet</p></div>'; return; }
+
+  const allStudents = [];
+  studSnap.forEach(c => {
+    const s = c.val();
+    if ((!dept || s.dept===dept) && (!sem || s.sem===sem)) allStudents.push(s);
+  });
+
+  const sessions = [];
+  if (sessSnap.exists()) {
+    sessSnap.forEach(c => {
+      const s = c.val();
+      if (s.status === 'ended') sessions.push({ ...s, code: c.key });
+    });
+  }
+
+  if (allStudents.length === 0) { el.innerHTML = '<div class="empty"><p>No students match this filter</p></div>'; return; }
+
+  el.innerHTML = allStudents.map(s => {
+    const key = sanitizeEmail(s.email||'');
+    const attended = sessions.filter(sess => sess.attendance && sess.attendance[key]).length;
+    const total = sessions.filter(sess => (!s.dept||!sess.dept||sess.dept===s.dept)&&(!s.sem||!sess.sem||sess.sem===s.sem)).length;
+    const pct = total > 0 ? Math.round(attended/total*100) : null;
+    const pctClass = pct===null?'badge-blue':pct>=APP_CONFIG.threshold?'badge-green':pct>=(APP_CONFIG.threshold-10)?'badge-amber':'badge-red';
+    return `<div class="student-row">
+      <div class="s-avatar">${s.photo?`<img src="${s.photo}">`:(s.name||'?')[0].toUpperCase()}</div>
+      <div class="s-info"><div class="s-name">${s.name||'—'}</div><div class="s-roll">${s.roll} · ${s.dept}</div></div>
+      <div class="s-right"><span class="badge ${pctClass}">${pct!==null?pct+'%':'—'}</span><div style="font-size:10px;color:var(--ink3);margin-top:3px">${attended}/${total}</div></div>
+    </div>`;
+  }).join('');
+}
+
+async function addStudentManual() {
+  const roll  = document.getElementById('add-roll').value.trim().toUpperCase();
+  const name  = document.getElementById('add-name').value.trim();
+  const email = document.getElementById('add-email').value.trim().toLowerCase();
+  const dept  = document.getElementById('add-dept').value;
+  const sem   = document.getElementById('add-sem').value;
+  if (!roll||!name||!dept||!sem) { showAlert('add-alert','amber','Fill all required fields.'); return; }
+
+  const key = email ? sanitizeEmail(email) : 'roll_' + roll.replace(/-/g,'_');
+  await db.ref('students/' + key).set({ roll, name, email, dept, sem, addedByTeacher: true });
+  if (email) await db.ref('rollIndex/' + roll.replace(/-/g,'_')).set(key);
+  showAlert('add-alert','green',`${name} added!`);
+  ['add-roll','add-name','add-email'].forEach(id=>document.getElementById(id).value='');
+  loadStudentList();
+}
+
+async function importStudentsCSV(input) {
+  const file = input.files[0]; if(!file)return;
+  const text = await file.text();
+  const lines = text.split('\n').filter(l=>l.trim());
+  let added=0, skipped=0;
+  for (let i=0; i<lines.length; i++) {
+    if(i===0&&lines[i].toLowerCase().includes('roll'))continue;
+    const [roll,name,email,mobile,dept,sem] = lines[i].split(',').map(s=>s.trim().replace(/"/g,''));
+    if(!roll||!name)continue;
+    const key = email ? sanitizeEmail(email) : 'roll_'+roll.replace(/-/g,'_');
+    const snap = await db.ref('students/'+key).get();
+    if(snap.exists()){skipped++;continue;}
+    await db.ref('students/'+key).set({roll:roll.toUpperCase(),name,email:email||'',mobile:mobile||'',dept:dept||'',sem:sem||'',addedByTeacher:true});
+    if(email) await db.ref('rollIndex/'+roll.replace(/-/g,'_')).set(key);
+    added++;
+  }
+  showAlert('csv-alert','green',`Done! Added: ${added}, Skipped: ${skipped}`);
+  input.value='';
+  loadStudentList();
+}
+
+async function loadStudentList() {
+  const el = document.getElementById('student-list-content');
+  el.innerHTML = '<div class="spinner"></div>';
+  const snap = await db.ref('students').get();
+  if (!snap.exists()) { el.innerHTML='<div class="empty"><p>No students yet</p></div>'; return; }
+  const list = [];
+  snap.forEach(c=>list.push(c.val()));
+  el.innerHTML = list.map(s=>`
+    <div class="student-row">
+      <div class="s-avatar">${s.photo?`<img src="${s.photo}">`:(s.name||'?')[0].toUpperCase()}</div>
+      <div class="s-info"><div class="s-name">${s.name||'—'}</div><div class="s-roll">${s.roll} · ${s.dept} · ${s.sem}</div></div>
+      <span class="badge ${s.email?'badge-green':'badge-amber'}">${s.email?'Gmail linked':'No Gmail'}</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════════════════
+async function loadAppConfig() {
+  const snap = await db.ref('config').get();
+  if (snap.exists()) {
+    const c = snap.val();
+    if (c.departments)   APP_CONFIG.departments   = c.departments;
+    if (c.semesters)     APP_CONFIG.semesters     = c.semesters;
+    if (c.threshold)     APP_CONFIG.threshold     = c.threshold;
+    if (c.sheetUrl)      APP_CONFIG.sheetUrl      = c.sheetUrl;
+    if (c.teacherEmails) APP_CONFIG.teacherEmails = c.teacherEmails;
+  }
+  populateSelects();
+}
+
+function populateSelects() {
+  const depts = APP_CONFIG.departments;
+  const sems  = APP_CONFIG.semesters;
+  ['prof-dept','ns-dept','add-dept','rec-dept-filter'].forEach(id => {
+    const el = document.getElementById(id); if(!el)return;
+    const cur = el.value;
+    const blank = id.includes('filter')||id==='ns-dept' ? '<option value="">All departments</option>' : '<option value="">— Select —</option>';
+    el.innerHTML = blank + depts.map(d=>`<option value="${d}"${d===cur?' selected':''}>${d}</option>`).join('');
+  });
+  ['prof-sem','ns-sem','add-sem','rec-sem-filter'].forEach(id => {
+    const el = document.getElementById(id); if(!el)return;
+    const cur = el.value;
+    const blank = id.includes('filter')||id==='ns-sem' ? '<option value="">All semesters</option>' : '<option value="">— Select —</option>';
+    el.innerHTML = blank + sems.map(s=>`<option value="${s}"${s===cur?' selected':''}>${s}</option>`).join('');
+  });
+}
+
+async function addDept() {
+  const name = document.getElementById('new-dept').value.trim();
+  if (!name) return;
+  if (!APP_CONFIG.departments.includes(name)) APP_CONFIG.departments.push(name);
+  await db.ref('config/departments').set(APP_CONFIG.departments);
+  document.getElementById('new-dept').value='';
+  populateSelects(); renderDeptList();
+}
+
+function renderDeptList() {
+  document.getElementById('dept-list-display').innerHTML =
+    APP_CONFIG.departments.map((d,i)=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:14px">${d}</span>
+        <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:#fecaca" onclick="removeDept(${i})">Remove</button>
+      </div>`).join('');
+}
+
+async function removeDept(i) {
+  APP_CONFIG.departments.splice(i,1);
+  await db.ref('config/departments').set(APP_CONFIG.departments);
+  populateSelects(); renderDeptList();
+}
+
+async function saveThreshold() {
+  const v = parseInt(document.getElementById('thresh-input').value)||75;
+  APP_CONFIG.threshold = Math.min(100,Math.max(0,v));
+  await db.ref('config/threshold').set(APP_CONFIG.threshold);
+  alert('Threshold saved: '+APP_CONFIG.threshold+'%');
+}
+
+async function saveSheetUrl() {
+  const url = document.getElementById('sheet-url-input').value.trim();
+  APP_CONFIG.sheetUrl = url;
+  await db.ref('config/sheetUrl').set(url);
+  showAlert('sheet-alert','green','Saved!');
+}
+
+async function addTeacherEmail() {
+  const email = document.getElementById('new-teacher-email').value.trim().toLowerCase();
+  if (!email||!email.includes('@')) return;
+  if (!APP_CONFIG.teacherEmails.includes(email)) APP_CONFIG.teacherEmails.push(email);
+  await db.ref('config/teacherEmails').set(APP_CONFIG.teacherEmails);
+  document.getElementById('new-teacher-email').value='';
+  renderTeacherEmails();
+}
+
+function renderTeacherEmails() {
+  document.getElementById('teacher-emails-list').innerHTML =
+    APP_CONFIG.teacherEmails.map((e,i)=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:13px;font-family:var(--mono)">${e}</span>
+        <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="removeTeacherEmail(${i})">Remove</button>
+      </div>`).join('');
+}
+
+async function removeTeacherEmail(i) {
+  APP_CONFIG.teacherEmails.splice(i,1);
+  await db.ref('config/teacherEmails').set(APP_CONFIG.teacherEmails);
+  renderTeacherEmails();
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEACHER DATA LOAD
+// ══════════════════════════════════════════════════════════════
+function loadTeacherData() {
+  loadRecords();
+  loadStudentList();
+  renderDeptList();
+  renderTeacherEmails();
+  document.getElementById('thresh-input').value = APP_CONFIG.threshold;
+  document.getElementById('sheet-url-input').value = APP_CONFIG.sheetUrl||'';
+  populateSelects();
+  // Check if there's an active session for this teacher
+  db.ref('sessions').orderByChild('createdBy').equalTo(currentUser.email).limitToLast(1).get().then(snap => {
+    if (!snap.exists()) return;
+    snap.forEach(child => {
+      const s = child.val();
+      if (s.status === 'active' && Date.now() < s.expiresAt) {
+        activeSession = { ...s, code: child.key };
+        showActiveSession(activeSession);
+      }
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════
+function showPage(p) {
+  ['login','register','attend','stats','teacher'].forEach(x => {
+    document.getElementById('page-'+x)?.classList.toggle('active', x===p);
+    document.getElementById('page-'+x)?.classList.toggle('hidden', x!==p);
+  });
+  ['attend','stats','teacher'].forEach(x => {
+    document.getElementById('nav-'+x)?.classList.toggle('active', x===p);
+  });
+  const subs = {login:'Sign in',register:'Complete profile',attend:'Mark attendance',stats:'My stats',teacher:'Teacher dashboard'};
+  document.getElementById('topbar-sub').textContent = subs[p]||'';
+}
+
+function tTab(name, btn) {
+  ['session','records','students','settings'].forEach(t => {
+    document.getElementById('tt-'+t).classList.toggle('hidden', t!==name);
+  });
+  document.querySelectorAll('.tab-bar .tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXPORT CSV
+// ══════════════════════════════════════════════════════════════
+async function exportCSV() {
+  const [studSnap, sessSnap] = await Promise.all([db.ref('students').get(), db.ref('sessions').get()]);
+  let csv = 'Roll,Name,Email,Department,Semester,Sessions Attended,Total Sessions,Percentage\n';
+  if (!studSnap.exists()) { alert('No data'); return; }
+  const sessions = [];
+  if (sessSnap.exists()) sessSnap.forEach(c=>{ if(c.val().status==='ended') sessions.push({...c.val(),code:c.key}); });
+  studSnap.forEach(c => {
+    const s = c.val();
+    const key = sanitizeEmail(s.email||'');
+    const attended = sessions.filter(sess=>sess.attendance&&sess.attendance[key]).length;
+    const total = sessions.filter(sess=>(!s.dept||!sess.dept||sess.dept===s.dept)&&(!s.sem||!sess.sem||sess.sem===s.sem)).length;
+    const pct = total>0?Math.round(attended/total*100):0;
+    csv += `"${s.roll}","${s.name}","${s.email}","${s.dept}","${s.sem}",${attended},${total},${pct}%\n`;
+  });
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'attendance_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════════════════════════════
+// Haversine distance in meters
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLon = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+async function sendToSheet(data) {
+  if (!APP_CONFIG.sheetUrl) return;
+  try {
+    await fetch(APP_CONFIG.sheetUrl, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'attendance',...data}) });
+  } catch(e) {}
+}
+
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id); if(!el)return;
+  const map = {green:'alert-green',red:'alert-red',amber:'alert-amber',blue:'alert-blue'};
+  const icon = {green:'✅',red:'❌',amber:'⚠️',blue:'ℹ️'};
+  el.className = 'alert ' + (map[type]||'alert-blue');
+  el.innerHTML = `<span class="alert-icon">${icon[type]||'ℹ️'}</span><span>${msg}</span>`;
+  el.classList.remove('hidden');
+}
+function hideAlert(id) { document.getElementById(id)?.classList.add('hidden'); }
+
+// ══════════════════════════════════════════════════════════════
+// START
+// ══════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
